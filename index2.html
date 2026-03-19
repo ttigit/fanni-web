@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tóth Fanni</title>
+  <style>
+    :root {
+      --bg:  #f783a7;
+      --c0:  #ffedf4;
+      --c1:  #ffc8da;
+      --c2:  #ffb3cc;
+      --ink: #5c2e3e;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Georgia', 'Times New Roman', serif;
+    }
+
+    /* ══════════════════════════════════
+       SCENE
+    ══════════════════════════════════ */
+    #scene {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* ── Full-canvas layers (face.png, glasses.png) ──
+       Positioned/sized by JS to fit viewport           */
+    .face-layer {
+      position: absolute;
+      pointer-events: none;
+      user-select: none;
+      display: block;
+    }
+
+    /* z-index layering:
+       2 = eye containers  (clipped circular windows, behind face)
+       3 = face.png        (mask; eyeholes reveal layer 2 below)
+       4 = glasses.png     (on top of face)
+      10 = nav circles        */
+    #face    { z-index: 3; }
+    #glasses { z-index: 4; }
+
+    /* ══════════════════════════════════
+       EYES
+       Circular containers with overflow:hidden
+       so the iris can never escape the eyehole.
+    ══════════════════════════════════ */
+    .eye {
+      position: absolute;
+      pointer-events: none;
+      z-index: 2;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #fffbf8;
+      border: 3px solid #2a1510;
+      box-shadow: inset 0 2px 5px rgba(0,0,0,0.07);
+    }
+
+    .eye-iris {
+      position: absolute;
+      /* centred in container, offset via transform */
+      top: 50%; left: 50%;
+      width: 50%; height: 50%;
+      margin-top: -25%; margin-left: -25%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 30%, #b08060, #4a2810 72%);
+      will-change: transform;
+      transition: transform 0.06s linear;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eye-pupil {
+      width: 44%; height: 44%;
+      background: #120806;
+      border-radius: 50%;
+    }
+
+    .eye-shine {
+      position: absolute;
+      top: 12%; left: 16%;
+      width: 22%; height: 22%;
+      background: rgba(255,255,255,0.88);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════
+       NAVIGATION CIRCLES
+    ══════════════════════════════════ */
+    @keyframes floatPulse {
+      0%,100% { transform: translate(-50%,-50%) scale(1.00); }
+      50%      { transform: translate(-50%,-50%) scale(1.03); }
+    }
+
+    .nav-circle {
+      position: absolute;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Georgia', serif;
+      letter-spacing: 0.13em;
+      text-transform: lowercase;
+      color: var(--ink);
+      box-shadow: 0 6px 28px rgba(140,50,80,0.18);
+      transform: translate(-50%, -50%);
+      animation: floatPulse 3.6s ease-in-out infinite;
+    }
+
+    #nav-0 { background: var(--c0); animation-delay: 0s; }
+    #nav-1 { background: var(--c1); animation-delay: 1.2s; }
+    #nav-2 { background: var(--c2); animation-delay: 2.4s; }
+
+    .nav-circle:hover {
+      animation: none;
+      transform: translate(-50%, -50%) scale(1.08);
+      box-shadow: 0 10px 36px rgba(140,50,80,0.28);
+    }
+
+    /* ══════════════════════════════════
+       PAGE PANELS
+    ══════════════════════════════════ */
+    .page-panel {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      pointer-events: none;
+      clip-path: circle(0% at var(--ox, 50%) var(--oy, 80%));
+      transition: clip-path 0.82s cubic-bezier(0.76, 0, 0.24, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-panel.open {
+      clip-path: circle(200% at var(--ox, 50%) var(--oy, 80%));
+      pointer-events: all;
+    }
+
+    #pg-0 { background: var(--c0); }
+    #pg-1 { background: var(--c1); }
+    #pg-2 { background: var(--c2); }
+
+    /* ── Back button ── */
+    .back-btn {
+      position: absolute;
+      top: 1.8rem; left: 2.4rem;
+      background: rgba(255,255,255,0.48);
+      border: 1.5px solid rgba(92,46,62,0.2);
+      border-radius: 2rem;
+      padding: 0.45rem 1.25rem;
+      font-family: 'Georgia', serif;
+      font-size: 0.85rem;
+      color: var(--ink);
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: background 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.78); }
+
+    /* ── Inner page content ── */
+    .page-inner {
+      text-align: center;
+      color: var(--ink);
+      max-width: 600px;
+      padding: 3rem 2rem;
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.4s ease 0.5s, transform 0.4s ease 0.5s;
+    }
+
+    .page-panel.open .page-inner {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .page-inner h1 {
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      margin-bottom: 1.6rem;
+    }
+
+    .divider {
+      width: 3rem; height: 1px;
+      background: rgba(92,46,62,0.22);
+      margin: 0 auto 1.8rem;
+    }
+
+    .page-inner p {
+      font-size: 1.05rem;
+      line-height: 2;
+      opacity: 0.75;
+    }
+
+    .contact-link {
+      display: inline-block;
+      margin-top: 1.6rem;
+      font-size: 1.05rem;
+      color: var(--ink);
+      opacity: 0.85;
+      letter-spacing: 0.05em;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(92,46,62,0.3);
+      padding-bottom: 0.1em;
+      transition: opacity 0.2s;
+    }
+    .contact-link:hover { opacity: 1; }
+
+    /* ── Work grid placeholder ── */
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+      margin-top: 1.8rem;
+    }
+
+    .work-tile {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      opacity: 0.45;
+    }
+
+    .work-tile:nth-child(1) { background: #f9c8d8; }
+    .work-tile:nth-child(2) { background: #f8b8cc; }
+    .work-tile:nth-child(3) { background: #f6a0bb; }
+    .work-tile:nth-child(4) { background: #f8b8cc; }
+    .work-tile:nth-child(5) { background: #f9c8d8; }
+    .work-tile:nth-child(6) { background: #f6a0bb; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════ MAIN SCENE ════════════════ -->
+<div id="scene">
+
+  <!-- Eyes: circular containers that clip the iris to the eyehole boundary -->
+  <div class="eye" id="eye-l">
+    <div class="eye-iris" id="iris-l"><div class="eye-pupil"></div></div>
+    <div class="eye-shine"></div>
+  </div>
+  <div class="eye" id="eye-r">
+    <div class="eye-iris" id="iris-r"><div class="eye-pupil"></div></div>
+    <div class="eye-shine"></div>
+  </div>
+
+  <!-- Face transparent layer (eyeholes reveal eyeballs below) -->
+  <img class="face-layer" id="face" src="transparent-images/face.png" alt="">
+
+  <!-- Glasses overlay -->
+  <img class="face-layer" id="glasses" src="transparent-images/glasses.png" alt="">
+
+  <!-- Navigation circles -->
+  <button class="nav-circle" id="nav-0" onclick="openPage(0)">about</button>
+  <button class="nav-circle" id="nav-1" onclick="openPage(1)">work</button>
+  <button class="nav-circle" id="nav-2" onclick="openPage(2)">contact</button>
+
+</div>
+
+
+<!-- ════════════════ PAGE 0 — About ════════════════ -->
+<div class="page-panel" id="pg-0">
+  <button class="back-btn" onclick="closePage(0)">← back</button>
+  <div class="page-inner">
+    <h1>about</h1>
+    <div class="divider"></div>
+    <p>
+      Designer and illustrator with a love for soft palettes,<br>
+      expressive characters, and stories told through image.<br><br>
+      Based in Hungary. Always creating.
+    </p>
+  </div>
+</div>
+
+
+<!-- ════════════════ PAGE 1 — Work ════════════════ -->
+<div class="page-panel" id="pg-1">
+  <button class="back-btn" onclick="closePage(1)">← back</button>
+  <div class="page-inner">
+    <h1>work</h1>
+    <div class="divider"></div>
+    <p>Illustration · Branding · Editorial · Pattern</p>
+    <div class="work-grid">
+      <div class="work-tile"></div>
+      <div class="work-tile"></div>
+      <div class="work-tile"></div>
+      <div class="work-tile"></div>
+      <div class="work-tile"></div>
+      <div class="work-tile"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════ PAGE 2 — Contact ════════════════ -->
+<div class="page-panel" id="pg-2">
+  <button class="back-btn" onclick="closePage(2)">← back</button>
+  <div class="page-inner">
+    <h1>contact</h1>
+    <div class="divider"></div>
+    <p>Let's make something together.</p>
+    <a class="contact-link" href="mailto:hello@fanni.hu">hello@fanni.hu</a>
+  </div>
+</div>
+
+
+<script>
+  // ─────────────────────────────────────────────────
+  // All three images share the same 3508 × 2480 canvas.
+  // Fractions below are relative to that canvas size.
+  // ─────────────────────────────────────────────────
+  const IMG_W = 3508, IMG_H = 2480;
+
+  // Eye specs  –  centre + diameter as fractions of image canvas.
+  // xf / yf mark the centre of the eyehole; df is diameter fraction.
+  // Adjust these once you can see how eye.png lines up with the holes.
+  const EYE_SPECS = [
+    { id: 'eye-l', iris: 'iris-l', xf: 0.437, yf: 0.363, df: 0.105 },
+    { id: 'eye-r', iris: 'iris-r', xf: 0.595, yf: 0.363, df: 0.105 },
+  ];
+
+  // Nav circle specs  –  centre + diameter as fractions of image canvas.
+  const CIRCLE_SPECS = [
+    { id: 'nav-0', xf: 0.320, yf: 0.660, df: 0.130 },
+    { id: 'nav-1', xf: 0.500, yf: 0.740, df: 0.130 },
+    { id: 'nav-2', xf: 0.680, yf: 0.660, df: 0.130 },
+  ];
+
+  // ─────────────────────────────────────────────────
+  // Compute on-screen rect of the rendered image
+  // ─────────────────────────────────────────────────
+  function getImgRect() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const imgAR = IMG_W / IMG_H, vpAR = vw / vh;
+    let w, h, x, y;
+    if (vpAR > imgAR) {       // viewport wider → constrained by height
+      h = vh; w = h * imgAR;
+      x = (vw - w) / 2; y = 0;
+    } else {                  // viewport narrower → constrained by width
+      w = vw; h = w / imgAR;
+      x = 0; y = (vh - h) / 2;
+    }
+    return { x, y, w, h };
+  }
+
+  // ─────────────────────────────────────────────────
+  // Layout: position all overlays to match the rendered canvas
+  // ─────────────────────────────────────────────────
+  function layoutAll() {
+    const r = getImgRect();
+
+    // Stretch face.png and glasses.png over the entire rendered image area
+    ['face', 'glasses'].forEach(id => {
+      const el = document.getElementById(id);
+      el.style.left   = r.x + 'px';
+      el.style.top    = r.y + 'px';
+      el.style.width  = r.w + 'px';
+      el.style.height = r.h + 'px';
+    });
+
+    // Position eye containers (circular clip windows)
+    EYE_SPECS.forEach(spec => {
+      const cx = r.x + r.w * spec.xf;
+      const cy = r.y + r.h * spec.yf;
+      // keep the container circular: width & height both use the same pixel value
+      const dw = r.w * spec.df;
+
+      const eye = document.getElementById(spec.id);
+      eye.style.left   = (cx - dw / 2) + 'px';
+      eye.style.top    = (cy - dw / 2) + 'px';
+      eye.style.width  = dw + 'px';
+      eye.style.height = dw + 'px';
+    });
+
+    // Position nav circles
+    CIRCLE_SPECS.forEach(spec => {
+      const el = document.getElementById(spec.id);
+      const cx = r.x + r.w * spec.xf;
+      const cy = r.y + r.h * spec.yf;
+      const d  = r.w * spec.df;
+      el.style.left     = cx + 'px';
+      el.style.top      = cy + 'px';
+      el.style.width    = d  + 'px';
+      el.style.height   = d  + 'px';
+      el.style.fontSize = (d * 0.115) + 'px';
+    });
+  }
+
+  // ─────────────────────────────────────────────────
+  // Eye tracking
+  // ─────────────────────────────────────────────────
+  function moveEyes(mx, my) {
+    EYE_SPECS.forEach(spec => {
+      const el   = document.getElementById(spec.id);
+      const rect = el.getBoundingClientRect();
+      const cx   = rect.left + rect.width  / 2;
+      const cy   = rect.top  + rect.height / 2;
+
+      const dx    = mx - cx, dy = my - cy;
+      const angle = Math.atan2(dy, dx);
+      const dist  = Math.hypot(dx, dy);
+      // iris radius = 25% of container; keep centre within 22% so the
+      // iris edge never reaches overflow:hidden boundary (looks clipped)
+      const maxT  = rect.width * 0.22;
+      const t     = Math.min(dist * 0.09, maxT);
+
+      document.getElementById(spec.iris).style.transform =
+        `translate(${Math.cos(angle) * t}px, ${Math.sin(angle) * t}px)`;
+    });
+  }
+
+  document.addEventListener('mousemove', e => moveEyes(e.clientX, e.clientY));
+  document.addEventListener('touchmove', e => {
+    const t = e.touches[0];
+    moveEyes(t.clientX, t.clientY);
+  }, { passive: true });
+
+  // ─────────────────────────────────────────────────
+  // Page reveal / close
+  // ─────────────────────────────────────────────────
+  function openPage(i) {
+    const btn = document.getElementById(`nav-${i}`);
+    const brc = btn.getBoundingClientRect();
+    const ox  = ((brc.left + brc.width  / 2) / window.innerWidth  * 100).toFixed(1) + '%';
+    const oy  = ((brc.top  + brc.height / 2) / window.innerHeight * 100).toFixed(1) + '%';
+
+    const pg = document.getElementById(`pg-${i}`);
+    pg.style.setProperty('--ox', ox);
+    pg.style.setProperty('--oy', oy);
+    pg.classList.remove('open');
+    void pg.offsetWidth;   // force reflow so transition fires from 0
+    pg.classList.add('open');
+  }
+
+  function closePage(i) {
+    document.getElementById(`pg-${i}`).classList.remove('open');
+  }
+
+  window.openPage  = openPage;
+  window.closePage = closePage;
+
+  // ─────────────────────────────────────────────────
+  // Init — wait for face image to load before laying out
+  // ─────────────────────────────────────────────────
+  const faceImg = document.getElementById('face');
+
+  function init() { layoutAll(); }
+
+  if (faceImg.complete && faceImg.naturalWidth > 0) {
+    init();
+  } else {
+    faceImg.addEventListener('load', init);
+  }
+
+  window.addEventListener('resize', layoutAll);
+</script>
+</body>
+</html>
