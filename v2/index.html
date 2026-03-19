@@ -50,8 +50,8 @@
 
     /* ══════════════════════════════════
        EYES
-       Circular containers with overflow:hidden
-       so the iris can never escape the eyehole.
+       Circular clip window  —  eye-centered.png
+       moves inside it, clipped to the circle.
     ══════════════════════════════════ */
     .eye {
       position: absolute;
@@ -59,39 +59,19 @@
       z-index: 2;
       border-radius: 50%;
       overflow: hidden;
-      background: #fffbf8;
-      border: 3px solid #2a1510;
-      box-shadow: inset 0 2px 5px rgba(0,0,0,0.07);
     }
 
-    .eye-iris {
+    /* Eyeball image: 130 × 130% of container so there is a
+       15% overhang on every side for the tracking movement */
+    .eye-img {
       position: absolute;
-      /* centred in container, offset via transform */
-      top: 50%; left: 50%;
-      width: 50%; height: 50%;
-      margin-top: -25%; margin-left: -25%;
-      border-radius: 50%;
-      background: radial-gradient(circle at 38% 30%, #b08060, #4a2810 72%);
+      width: 130%; height: 130%;
+      top: -15%; left: -15%;
+      object-fit: cover;   /* covers the square box, crops to centre */
       will-change: transform;
       transition: transform 0.06s linear;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .eye-pupil {
-      width: 44%; height: 44%;
-      background: #120806;
-      border-radius: 50%;
-    }
-
-    .eye-shine {
-      position: absolute;
-      top: 12%; left: 16%;
-      width: 22%; height: 22%;
-      background: rgba(255,255,255,0.88);
-      border-radius: 50%;
       pointer-events: none;
+      user-select: none;
     }
 
     /* ══════════════════════════════════
@@ -248,14 +228,12 @@
 <!-- ════════════════ MAIN SCENE ════════════════ -->
 <div id="scene">
 
-  <!-- Eyes: circular containers that clip the iris to the eyehole boundary -->
+  <!-- Eyes: eye-centered.png rolls inside the circular clip window -->
   <div class="eye" id="eye-l">
-    <div class="eye-iris" id="iris-l"><div class="eye-pupil"></div></div>
-    <div class="eye-shine"></div>
+    <img class="eye-img" id="eye-img-l" src="transparent-images/eye-centered.png" alt="">
   </div>
   <div class="eye" id="eye-r">
-    <div class="eye-iris" id="iris-r"><div class="eye-pupil"></div></div>
-    <div class="eye-shine"></div>
+    <img class="eye-img" id="eye-img-r" src="transparent-images/eye-centered.png" alt="">
   </div>
 
   <!-- Face transparent layer (eyeholes reveal eyeballs below) -->
@@ -329,8 +307,8 @@
   // xf / yf mark the centre of the eyehole; df is diameter fraction.
   // Adjust these once you can see how eye.png lines up with the holes.
   const EYE_SPECS = [
-    { id: 'eye-l', iris: 'iris-l', xf: 0.437, yf: 0.363, df: 0.105 },
-    { id: 'eye-r', iris: 'iris-r', xf: 0.595, yf: 0.363, df: 0.105 },
+    { id: 'eye-l', img: 'eye-img-l', xf: 0.440, yf: 0.363, df: 0.105 },
+    { id: 'eye-r', img: 'eye-img-r', xf: 0.595, yf: 0.363, df: 0.105 },
   ];
 
   // Nav circle specs  –  centre + diameter as fractions of image canvas.
@@ -413,12 +391,12 @@
       const dx    = mx - cx, dy = my - cy;
       const angle = Math.atan2(dy, dx);
       const dist  = Math.hypot(dx, dy);
-      // iris radius = 25% of container; keep centre within 22% so the
-      // iris edge never reaches overflow:hidden boundary (looks clipped)
-      const maxT  = rect.width * 0.22;
+      // img overhangs 15% on each side; cap travel at 13% so the
+      // image edge never becomes visible inside the clip circle
+      const maxT  = rect.width * 0.13;
       const t     = Math.min(dist * 0.09, maxT);
 
-      document.getElementById(spec.iris).style.transform =
+      document.getElementById(spec.img).style.transform =
         `translate(${Math.cos(angle) * t}px, ${Math.sin(angle) * t}px)`;
     });
   }
