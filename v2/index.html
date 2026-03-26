@@ -307,8 +307,8 @@
   // xf / yf mark the centre of the eyehole; df is diameter fraction.
   // Adjust these once you can see how eye.png lines up with the holes.
   const EYE_SPECS = [
-    { id: 'eye-l', img: 'eye-img-l', xf: 0.440, yf: 0.363, df: 0.105 },
-    { id: 'eye-r', img: 'eye-img-r', xf: 0.595, yf: 0.363, df: 0.105 },
+    { id: 'eye-l', img: 'eye-img-l', xf: 0.440, yf: 0.366, df: 0.105, maxX: 0.13, maxY: 0.13 },
+    { id: 'eye-r', img: 'eye-img-r', xf: 0.585, yf: 0.361, df: 0.105, maxX: 0.13, maxY: 0.13 },
   ];
 
   // Nav circle specs  –  centre + diameter as fractions of image canvas.
@@ -388,16 +388,15 @@
       const cx   = rect.left + rect.width  / 2;
       const cy   = rect.top  + rect.height / 2;
 
-      const dx    = mx - cx, dy = my - cy;
-      const angle = Math.atan2(dy, dx);
-      const dist  = Math.hypot(dx, dy);
-      // img overhangs 15% on each side; cap travel at 13% so the
-      // image edge never becomes visible inside the clip circle
-      const maxT  = rect.width * 0.13;
-      const t     = Math.min(dist * 0.09, maxT);
+      const dx = mx - cx, dy = my - cy;
+
+      const maxTx = rect.width  * spec.maxX;
+      const maxTy = rect.height * spec.maxY;
+      const tx = Math.sign(dx) * Math.min(Math.abs(dx) * 0.09, maxTx);
+      const ty = Math.sign(dy) * Math.min(Math.abs(dy) * 0.09, maxTy);
 
       document.getElementById(spec.img).style.transform =
-        `translate(${Math.cos(angle) * t}px, ${Math.sin(angle) * t}px)`;
+        `translate(${tx}px, ${ty}px)`;
     });
   }
 
